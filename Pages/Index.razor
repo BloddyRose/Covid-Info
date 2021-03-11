@@ -1,0 +1,127 @@
+﻿@page "/"
+
+<h3>Index</h3>
+@if (d == null)
+{
+    <div class="spinner-grow-sm"></div>
+}
+else
+{
+<div class="live-update bg-white mb-5">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h2 class="font-weight-bold mb-5">Live Update</h2>
+        </div>
+        <div class="col-md-4 text-center mb-5 mb-md-0">
+            <img src="/images/icon-01.png" class="img-fluid" alt="Icon">
+            <p class="font-weight-bold mt-3 mb-0">New Cases</p>
+            <span class="font-weight-bold blue-text">@d.cases</span>
+        </div>
+        <div class="col-md-4 text-center mb-5 mb-md-0">
+            <img src="/images/icon-02.png" class="img-fluid" alt="Icon">
+            <p class="font-weight-bold mt-3 mb-0">New Recoveries</p>
+            <span class="font-weight-bold green-text">@d.recoveries</span>
+        </div>
+        <div class="col-md-4 text-center">
+            <img src="/images/icon-03.png" class="img-fluid" alt="Icon">
+            <p class="font-weight-bold mt-3 mb-0">New Deaths</p>
+            <span class="font-weight-bold red-text">@d.deaths</span>
+        </div>
+    </div>
+</div>
+<div class="live-update bg-white">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h2 class="font-weight-bold mb-5">Totals Updates</h2>
+        </div>
+        <div class="col-md-4 text-center mb-5 mb-md-0">
+            <img src="/images/icon-01.png" class="img-fluid" alt="Icon">
+            <p class="font-weight-bold mt-3 mb-0">Total Cases</p>
+            <span class="font-weight-bold blue-text">@d.tcases</span>
+        </div>
+        <div class="col-md-4 text-center mb-5 mb-md-0">
+            <img src="/images/icon-02.png" class="img-fluid" alt="Icon">
+            <p class="font-weight-bold mt-3 mb-0">Total Recoveries</p>
+            <span class="font-weight-bold green-text">@d.trecoveries</span>
+        </div>
+        <div class="col-md-4 text-center">
+            <img src="/images/icon-03.png" class="img-fluid" alt="Icon">
+            <p class="font-weight-bold mt-3 mb-0">Total Deaths</p>
+            <span class="font-weight-bold red-text">@d.tdeaths</span>
+        </div>
+    </div>
+</div>
+<div class="container">
+  <div class="row">
+    <div class="col text-center">
+      <button class="btn btn-outline-dark" @onclick="@GetSetData">Refresh</button>
+    </div>
+  </div>
+</div>
+}
+
+
+
+
+@inject IJSRuntime JsRuntime;
+
+@code {
+
+    public Data d = new Data();
+
+    public class Data
+    {
+        public string cases { get; set; }
+        public string recoveries { get; set; }
+        public string deaths { get; set; }
+        public string tcases { get; set; }
+        public string trecoveries { get; set; }
+        public string tdeaths { get; set; }
+    }
+
+    private async void GetSetData()
+    {
+        try
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Accept.Clear();
+                HttpResponseMessage response = await client.GetAsync("https://api.covid19api.com/summary");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Console.Write("Success");
+                }
+                else
+                {
+                    Console.Write("Error" + response.StatusCode);
+
+                }
+                string r = await response.Content.ReadAsStringAsync();
+
+                CovidData res = CovidData.FromJson(r);
+
+                d.cases = res.Global.NewConfirmed.Value.ToString("#,##0");
+                d.recoveries = res.Global.NewRecovered.Value.ToString("#,##0");
+                d.deaths = res.Global.NewDeaths.Value.ToString("#,##0");
+
+                d.tcases = res.Global.TotalConfirmed.Value.ToString("#,##0");
+                d.trecoveries = res.Global.TotalRecovered.Value.ToString("#,##0");
+                d.tdeaths = res.Global.TotalDeaths.Value.ToString("#,##0");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            bool confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "An error cathced");
+
+        }
+
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        Task.Run(GetSetData);
+        return base.OnInitializedAsync();
+    }
+}
